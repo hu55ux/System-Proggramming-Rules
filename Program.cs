@@ -105,9 +105,25 @@ var calculator = Process.GetProcessByName("Calculator"); // Adı Calculator olan
 
  
  
- 
- 
- 
+                                                                                Thread
+
+Thread - Axın - Hər bir processin daxilində bir və ya bir neçə thread ola bilər. Hər bir thread öz daxilində bir iş görür. 
+Məsələn bir web browser proqramı var. Bu proqramın daxilində bir neçə thread ola bilər. Bu threadlərdən biri web səhifəsini yükləyir, digəri istifadəçi ilə qarşılıqlı əlaqə yaradır,
+Hər bir threadin öz propertieləri və methodları olur.
+Thread.GetCurrentThread() - Cari thread-i əldə edir.
+Thread.Sleep(1000) - Cari thread-i müəyyən müddət (1000ms) dayandırır.
+Thread.GetCurrentThread().Name - Cari thread-in adını əldə edir.
+Thread.GetCurrentThread().Priority - Cari thread-in prioritetini əldə edir.
+Thread.GetCurrentThread().Id - Cari thread-in unikal identifikatorunu (ID) əldə edir.
+Thread.GetCurrentThread().IsBackground - Cari thread-in background olub olmadığını göstərir.
+Thread.Start() - Thread-i işə salır.
+Thread.Join() - Çağıran thread-i çağırılan threadin bitməsini gözləyir və sonra işə davam edir.
+Thread.Interrupt() - Thread-i zorla dayandırır.
+
+Thread-a biz Action və ya ParameterizedThreadStart delegate-ləri vasitəsilə metod ötürə bilərik. Yəni bu methodlar void qaytarmalı və parametr qəbul etməməlidir.
+Thread əgər background thread-dirsə proqram bitdikdə avtomatik olaraq dayandırılır. Amma əgər foreground thread-dirsə proqram bitdikdə də işləməyə davam edir.
+Yəni bizim programımız sonuncu foreground thread bitənə qədər işləməyə davam edir.
+Thread-lərin prioritetləri də var. Prioritet nə qədər yüksəkdirsə thread o qədər tez işlənir. Yəni schedulerə threadin daha vacib olduğunu bildirir və nəticədə daha tez işlənir.
  
  
  
