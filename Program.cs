@@ -126,8 +126,85 @@ Yəni bizim programımız sonuncu foreground thread bitənə qədər işləməy�
 Thread-lərin prioritetləri də var. Prioritet nə qədər yüksəkdirsə thread o qədər tez işlənir. Yəni schedulerə threadin daha vacib olduğunu bildirir və nəticədə daha tez işlənir.
  
  
+
+                                                                                ThreadPool
+
+Timer classında biz baxdıq ki bir thread ui-ı bir thread isə timer-i idarə edir. Yəni iki thread var idi. Və buda bizə donmadan düzgün işləyən bir timer göstərirdi.
+
+Bunun səbəbidə ThreadPool-dur.
+ThreadPool - Thread hovuzu - Əməliyyat sistemi tərəfindən idarə olunan və müəyyən sayda thread-lərin saxlandığı bir hovuzdur.   
+
+Hər bir project yaranan zaman inunla bərabər bir ThreadPool yaranır ki daxilində işləməyə hazır thread-lər saxlanılır.
+Biz code daxilində Thread yaradıb işə salmaq əvəzinə ThreadPoola müraciət edirik və ThreadPool bizə işə hazır thread verir.
+İşimiz bitdikdən sonra da istifadə etdiyimiz thread və ya threadlar yenidən ThreadPool-a qaytarılır ki yenidən istifadə olunsun.
+Amma diqqət olunmalı məsələlərdən biri budur ki, Windows və .NET CLR-in öz ThreadPool-ları var. Biz code-muzda .NET-in ThreadPool-dan istifadə edirik.
+İndi gəlin code nümunəsinə baxaq:
+
+1. ThreadPool.GetAvailableThreads(out workerThreads, out completionPortThreads) - İstifadə edilməyə hazır threadlərin sayını əldə edir.
+Burada biz iki dəyər alırıq. workerThreads - ThreadPool-da olan əlçatan Threadların sayıdır, completionPortThreads - Bu isə sırf I/O əməliyyatları üçün nəzərdə tutulmuş thread-lərin sayıdır.
+Burada aldığımız dəyərlər kompyuterlərdən asılı olaraq dəyişə bilər.
  
- 
+2. ThreadPool.QueueUserWorkItem() - Bu methodla biz ThreadPool-a iş göndəririk ki o iş üçün bir thread ayırsın və həmin thread işimizi görsün.
+WaitCallback delegate-i vasitəsilə bir method ötürürük ki həmin method void qaytarmalı və bir object parametr qəbul etməlidir.
+Bu methoda biz ya Action delegate-i ötürə bilərik ya da ParameterizedThreadStart delegate-i ötürə bilərik. 
+void SomeOperation(object state)
+{
+    Console.WriteLine("Some operation is running...");
+    Thread.Sleep(2000); // Simulate some work
+    Console.WriteLine("Some operation is completed.");
+}
+ThreadPool.QueueUserWorkItem(SomeOperation); // SomeOperation methodunu ThreadPool-a göndərir.
+Və bizdə SomeOperation methodu üçün ThreadPool-dan bir thread ayrılır və həmin thread işimizi görür.
+
+Diqqət olunmalı bir digər məsələdə odurki ThreadPool-da yerləşən BÜTÜN threadlar background thread-lərdir. Yəni proqram bitdikdə avtomatik olaraq dayandırılırlar.
+
+ThreadPool üstünlüyü:
+1.Resurce Management - Resursların idarə olunması - ThreadPool resursları effektiv şəkildə idarə edir və lazımsız thread yaradılmasının qarşısını alır.
+2.Performance - Performans - ThreadPool istifadə edərək thread yaratmaq və idarə etmək daha sürətlidir, çünki mövcud thread-lərdən istifadə olunur.
+3.Yeni bir obyekt yaratmağa ehtiyyac olmur.
+4.ManageMent - İdarəEtmə - ThreadPool özü idarə olunur diyə biz müdaxilə edə bilmirik.
+
+Amma ThreadPool Thread-i böyük işlər zamanı yeni bir obyekt yaranmır və hazır threadlardan istifadə edir amma bu threadlarda əgər bir iş gedərsə bu zaman digər 
+işlər threadin boşalmasını gözləyir buda bizə vaxt itkisinə səbəb olur. Burada söhbət on minlərlə və ya daha bğyük datalarla işlərdən gedir ki bu zaman düşünsək ki ThreadPool 10 və ya 20 Thread ayırıb ki bu dataları işləsin
+bu zaman hiss olunan şəkildə vaxt itkisi və gecikmə baş verir. Amma Thread hər bir iş üçün bir Thread yaranır və buda gözləmə olmadan gecikməsiz və vaxt itkisiz işimiz həll olunur.
+Diqqət edilməli hissə odur ki bu fərq sadəcə böyük processlərdə olur Yəni daha kiçik işlərdə ThreadPool böyük işlərdə isə Thread daha səmərəlidir.
+
+İndi gəlin digər bir məsələyə nəzər yetirək:
+
+void OtherOperation()
+{
+    Console.WriteLine("Other operation running")
+    Thread.Sleep(2000); // Simulate some work
+    Console.WriteLine("Other operation is completed.");
+}
+Biz bu methodu ThreadPoolumuza göndərə bilmirik çünki error alınır. Bu methodda return deyilsə və ya delegate-ə uyöun gəlmirsə
+ThreadPool.QueueUserWorkItem(OtherOperations) - yazılışı error verir. amma
+ThreadPool.QueueUserWorkItem(state=>{OtherOperation()}) - bu code blokunda biz state adında yeni bir obyekt yaradırıq ki bu obyektdə öz daxilində bizim yazdığımız methodu çağırır.
+
+
+
+ThreadPool-un istifadə sahələri:
+
+1. Class ThreadPool
+2. WinForm Timer classes
+3. Asinxron methodlar
+4. TPL - Task Parallel Library
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
  
  
  
