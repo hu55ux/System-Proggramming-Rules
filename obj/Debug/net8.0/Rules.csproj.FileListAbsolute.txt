@@ -1,0 +1,15 @@
+C:\Users\user\Desktop\C++\System Proggramming\Rules\bin\Debug\net8.0\Rules.exe
+C:\Users\user\Desktop\C++\System Proggramming\Rules\bin\Debug\net8.0\Rules.deps.json
+C:\Users\user\Desktop\C++\System Proggramming\Rules\bin\Debug\net8.0\Rules.runtimeconfig.json
+C:\Users\user\Desktop\C++\System Proggramming\Rules\bin\Debug\net8.0\Rules.dll
+C:\Users\user\Desktop\C++\System Proggramming\Rules\bin\Debug\net8.0\Rules.pdb
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.AssemblyInfoInputs.cache
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.AssemblyInfo.cs
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.csproj.CoreCompileInputs.cache
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.sourcelink.json
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.dll
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\refint\Rules.dll
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.pdb
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.genruntimeconfig.cache
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\ref\Rules.dll

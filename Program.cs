@@ -192,6 +192,221 @@ ThreadPool-un istifadə sahələri:
 
 
 
+                                                                        Albahari tricks
+Code 1:
+for (int i = 0; i < 10; i++)
+{
+    new Thread(() =>
+    {
+        Console.WriteLine(i);
+    }).Start();
+}
+Burada normalda gözlənilən nəticə düzgün olmayan sıra ilə 0-9-a qədər olan ədədlərin çıxmasıdır.
+Amma belə olmur. Burada səbəb Threadların for dövründə olan i dəyərini daha sürətli almasıdır buda i-nin hər hansı bir dəyərində olan zaman
+bu dəyərin bir və ya bir neçə dəfə əldə olunmasıdır. Çünki for dövründə hər i dəyərində 3 process gedir ki buda müəyyən bir zaman dilimi çəkir. Threadlarında daha sürətli
+olduğuna görə bir qlobal dəyişən olan i dəyərini fərqli fərqli götürməsinə gətirib çıxarır. Thread daxilində əldə olunan i dəyəri capture list ilə alınan bir dəyər sayılır.
+Capture List method daxilində istifadə olunacaq parametrlərin saxlandığı hissədir C++da. Amma C#-da bu class daxilində özü icra olunur və buna ehtiyyac olmurki bizdə parametrli obyekt göndərə bilirik bunun üçündə 
+functor istifadə olunur ki () overloading olunur və class özünü method kimi apara bilir.
+Bu problemin həlli üçün:
+
+for (int i = 0; i < 10; i++)
+{
+    int x = i; // Burada bir x dəyişəni generasiya olunur və i dəyərinə bərabərləşdirilir ki buda bizə qeyri müəyyən sırada 0-9 aralığında ədədlər ekrana çıxır.
+    new Thread(() =>
+    {
+        Console.WriteLine(x);
+    }).Start();
+}
+
+Digər bir trick-ə baxaq
+
+string name = "Huseyn";
+Thread thread1 = new(() =>
+{
+    Console.WriteLine(name);
+});
+name = "Ensar";
+
+Thread thread2 = new(() =>
+{
+    Console.WriteLine(name);
+});
+
+thread1.Start();
+thread2.Start();
+
+Bu code nümunəsində də biz görürük ki yenə də Threadlarımız qlobal dəyişənin real dəyərini əldə edir. Burada da eyni data ekrana çıxacaq çünki burada data qlobal olması səbəbilə Threadlar
+real dəyəri əldə edir və onu istifadə edir.
+
+
+
+                                                                                        Critical Section
+
+Critical Section - Threadların eyni bir yaddaş sahəsinə(resursa) müraciət etməsinə deyilir.
+
+
+Thread[] threads = new Thread[5];
+
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i] = new Thread(() =>
+    {
+        for (int j = 0; j < 1000000; j++)
+        {
+            Counter.count++;
+        }
+    });
+}
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i].Start();
+}
+
+Console.WriteLine(Counter.count);
+class Counter
+{
+    public static int count = 0;
+}
+
+
+Burada biz yazdığımız kodun 5 000 000 nəticəsini görəcəyimizi düşünürük çünki 5 000 000 toplama əməliyyatı olur. Amma burada bir nüans var.
+Yazılan Counter.count++ əməliyyatı atomar əməliyyat deyil. Burada code hissəsi 3 əməliyyatdan ibarətdir. 
+Counter.count = Counter.count + 1; İlk öncə əməliyyat yaddaşımızdan dəyişənin dəyəri alınır sonra artırılır və sonra isə bərabərləşdirilir. Bu səbəbdən bu dəyişənə Threadlar sürətli 
+iş görmək üçün yarışdıqlarını nəzərə alaraq hər dəfə bu increment əməliyyatı bitmir və az dəyərlərə müraciət olunur. 
+Bu uzun əməliyyatları atomar formata çevirmək üçün biz Interlocked classı istifadə olunur.
+
+Thread[] threads = new Thread[5];
+
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i] = new Thread(() =>
+    {
+        for (int j = 0; j < 1000000; j++)
+        {
+            Interlocked.Increment(ref Counter.count); // Interlocked classsının daxilində bəzi hazır methodlardan istifadə edərək bu hissəni atomar bir processə çeviririk və scheduler-a deyirik ki bu əməliyyat bitmədən hazırda işləyən Threadi çıxarmasın.
+        }
+    });
+}
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i].Start();
+}
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i].Join();
+}
+
+Console.WriteLine(Counter.count);
+class Counter
+{
+    public static int count = 0;
+}
+
+
+Amma biz şərt qoyaraq əməliyyatı icra etmək istəsək bu zaman digər bir problem çıxır ki buda Interlocked classının şərt qoymaq üçün olan methodlarının olmamasıdır. Gəlin code nümunəsində baxaq:
+Qeyd edək ki Interlocked classımız sadəcə dəyişən üzərində əməl icra etmək üçün istifadə olunur və bu yoxlama işləri onun məsuliyyətində sayılmır.
+
+
+
+
+Thread[] threads = new Thread[5];
+
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i] = new Thread(() =>
+    {
+        for (int j = 0; j < 1000000; j++)
+        {
+            Interlocked.Increment(ref Counter.count); // Interlocked classsının daxilində bəzi hazır methodlardan istifadə edərək bu hissəni atomar bir processə çeviririk və scheduler-a deyirik ki bu əməliyyat bitmədən hazırda işləyən Threadi çıxarmasın.
+            if (Counter.count % 2 == 0) Interlocked.Increment(ref Counter.even); // Burada bu əmməliyyatımız atomar deyil çünki burada yoxlama zamanı dəyər başqa hissədədə eyni dəyər olarsa bu zaman səhv olur və Interlocked bu hissəni həll edə bilmir.
+        }
+    });
+}
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i].Start();
+}
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i].Join();
+}
+
+Console.WriteLine(Counter.count);
+class Counter
+{
+    public static int count = 0;
+    public static int even = 0;
+}
+Bu hissənidə biz Monitor classından istifadə edirik
+
+
+Thread[] threads = new Thread[5];
+Object obj = new Object(); // Bu objectdə bizim block zamanı hansı 
+
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i] = new Thread(() =>
+    {
+        for (int j = 0; j < 1000000; j++)
+        {
+            //Monitor.Enter(obj); // Bu method özündən sonra yazılan bütün hissəni ümumi bir əməliyyat kimi təyin edir və bu code blokunun icrasından sonra digərləri icra olunur. Bir növ bloklayır.
+            //try
+            //{
+            //    Interlocked.Increment(ref Counter.count); // Interlocked classsının daxilində bəzi hazır methodlardan istifadə edərək bu hissəni atomar bir processə çeviririk və scheduler-a deyirik ki bu əməliyyat bitmədən hazırda işləyən Threadi çıxarmasın.
+            //    if (Counter.count % 2 == 0) Interlocked.Increment(ref Counter.even); // Burada bu əmməliyyatımız atomar deyil çünki burada yoxlama zamanı dəyər başqa hissədədə eyni dəyər olarsa bu zaman səhv olur və Interlocked bu hissəni həll edə bilmir.
+            //}
+            //finally
+            //{
+            //    Monitor.Exit(obj); // Bu hissə bitəndən sonrada bu method istifadə olunur ki digər methodlarda istifadə olunsun.
+            //}
+            // Gəlin bu uzun hissənin birdə qısa yazılışına baxaq(syntax sugar):
+            lock (obj)
+            {
+                Counter.count++;
+                if(Counter.count%2==0) Counter.even++;
+            }
+
+
+        }
+    });
+}
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i].Start();
+}
+for (int i = 0; i < threads.Length; i++)
+{
+    threads[i].Join();
+}
+
+Console.WriteLine(Counter.count);
+class Counter
+{
+    public static int count = 0;
+    public static int even = 0;
+
+}
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 
 
 
@@ -205,19 +420,79 @@ ThreadPool-un istifadə sahələri:
 
 
 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
  */
