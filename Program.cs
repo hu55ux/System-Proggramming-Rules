@@ -641,6 +641,34 @@ void Thread2Work()
 
 
 
+RTTI - (Run Time Type Information) - C#-da Obyektin icra zamanı real tipini öyrənmək üçün istifadə olunan mexanizmdir.
+Kompilyasiya zamanı tip məlum deyil (xüsusilə polimorfizmdə).
+RTTI icra zamanı obyektin həqiqi tipini müəyyən edir.
+
+Nə zaman istifadə olunur?
+1. Polimorfizm zamanı obyektin real tipini tapmaq.
+2. Casting zamanı səhv çevirmədən qaçmaq.
+3. Logging, debugging üçün tip məlumatı almaq.
+4. Reflection ilə plugin, serialization və dinamik sistemlər yaratmaq.
+
+C#-da sadə analoq
+1. Təsəvvür et ki, sənin əlin “Heyvan” qutusundadır.
+2. Amma içində əslində it, pişik və ya quş ola bilər.
+3. RTTI bizə deyir: “Bu qutunun içində əslində nə var?” 
+
+Yekun
+C#-da RTTI əsasən:
+1. GetType() → tipin adı
+2. is → tip yoxlama
+3. as → təhlükəsiz çevirmə
+4. Reflection → dərin tip məlumatı
+🔹 Qısa desək: RTTI = obyektin icra zamanı real tipini öyrənmək mexanizmidir.
+
+
+
+
+
+
 
 
 
