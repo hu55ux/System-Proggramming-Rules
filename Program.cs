@@ -387,6 +387,254 @@ class Counter
 
 }
 
+                                                                                        Mutex 
+
+Mutex - Mutual Exclusion (Qarşılıqlı istisna) - Internal və External Thread-ların iş zamanı birinin bloklanması vasitəsilə bir-birini gözləməsi processidir.
+Mutex classı WaitHandle- classından törəyibki bu class vasitəsilə biz idarə olunmayan code bloklarını da istifadə edə bilirik.
+
+
+#region Internal Mutex  
+Mutex mutex = new Mutex();
+int number = 1;
+
+for (int i = 0; i < 5; i++)
+{
+    Thread thread = new(Count);
+    thread.Name = $"Mister {i + 1}";
+    thread.Start();
+}
+
+void Count()
+{
+    mutex.WaitOne(); // Bu hissə muteximizi bloklayır ki bu hissədə olan code hissəsi işini bitirməmiş digər işlər gedə bilməz.
+    for (int i = 0; i < 10; i++)
+    {
+        Console.WriteLine($"Thread: {Thread.CurrentThread.ManagedThreadId}: {number++}");
+    }
+    mutex.ReleaseMutex(); // Bu hissədə də biz mutexi azad edirik ki artıq növbəti işə Thread-ə keçid etsin.
+}
+
+#endregion
+ 
+
+#region External (global) Threads
+
+string mutexName = "Mutex"; // Mutex classında IDisposable interface-dən realization olunduğuna görə using statement ilə istifadə oluna bilir. Və biz muteximizə ad verdiyimiz zaman bu External Mutex hesab olunur.
+
+using (Mutex mutex = new Mutex(false,mutexName)) // Burada sadəcə mutexName verməklə biz bu mutex-in External Threadlar ilə işləməsini təmin edir. Burada olan bool dəyər isə true olarsa sadəcə işlədiyi hissəni görür və ilk hissə bitən zaman bu hissə ölür. Amma false olan zaman isə bu digər processləridə görür.
+{
+    if (!mutex.WaitOne(30000)) // Bu hissə əgər işləyən bir Thread varsa və digər Threadlar bu işləyən Threadi max gözləmə müddəti təyin olunur. Yəni göszləyən Thread 30 saniyə içəridəki Threadi gözləyir sonra isə gözləmir.
+    {
+        Console.WriteLine("Other Thread running"); // Burada WaitOne methodu bool dəyər qaytarır ki bu əgər işləyən varsa false qayıdır və bizdə true edərək bu kod hissəsini işlədirik. Əksində isə bu kod hissəsinə daxil olmur.
+        Thread.Sleep(1000);
+        return;
+    }
+    else
+    {
+        Console.WriteLine("My code running");
+        Console.ReadKey();  
+        mutex.ReleaseMutex();
+    }
+}
+
+
+#endregion
+
+Lock Monitor və Mutex hər biri Internal Threadlar ilə işləyə bilir. Amma fərqi buradadır ki Mutex həmdə External Threadlar ilə də işləyə bilir ki buda onun üstünlüyünü bildirir. 
+Performans baxımından daha ağırdır (Lock/Monitor-dan yavaşdır).
+Yanlış istifadə olunarsa deadlock (kilidlənmə) yarana bilər.
+Çox tez-tez istifadə olunarsa proqramın sürəti ciddi azalır.
+
+
+
+ 
+                                                                                        Semaphore və SemaphoreSlim
+
+Semaphore - Semaphore – eyni anda məhdud sayda thread-in (axının) bir resursa girişinə icazə verən sinxronizasiya mexanizmidir.
+
+Fərqi Mutex/Lock-dan odur ki, onlar yalnız 1 thread-ə icazə verir. Semaphore isə birdən çox (amma sayla məhdud) thread-in daxil olmasına icazə verə bilər.
+
+
+#region Semaphore
+
+Semaphore semaphore = new(3, 3); // Burada ilk dəyər Critical Sectionda başlanğıcda neçə icazənin mövcud olduğunu ikinci dəyər isə Semaphore-un maximum neçə Thread - ə icazə verə biləcəyini bildirir.
+// Əgər biz burada Semaphore(1,1) yazsaq bu Mutex və ya Lock-dan fərqlənməyəcək çünki sadəcə bir threada icazə verəcək ki burada da heç bir fərq olmayacaq.
+for (int i = 0; i < 10; i++)
+{
+    ThreadPool.QueueUserWorkItem(Some,semaphore);
+}
+Console.ReadKey();
+
+void Some(object? state)
+{
+    Random random = new Random();
+    var s = state as Semaphore;
+    bool st = false;
+    while (!st)
+    {
+        if (s.WaitOne(500))
+        {
+            try
+            {
+                Thread.Sleep(1);
+                Console.WriteLine($"Mr. {Thread.CurrentThread.ManagedThreadId} take key.");
+                Thread.Sleep(random.Next(3000, 6000));
+            }
+            finally
+            {
+                Thread.Sleep(1);
+                st = true;
+                Console.WriteLine($"Mr. {Thread.CurrentThread.ManagedThreadId} return key.");
+                s.Release(); // Burada da işini bitirən thread azad olunması siqnalı göndərilir.
+            }
+        }
+        else
+        {
+            Thread.Sleep(1);
+            Console.WriteLine($"Mr. {Thread.CurrentThread.ManagedThreadId} sorry no key yet.");
+
+        }
+    }
+}
+
+#endregion
+
+
+Və sadəcə üçüncü parametr olaraq bir string Name parametri verərək biz External Thread- ilə işləməsini təmin edirik.
+
+SemaphoreSlim - Eyni Semaphore ilə işləyir amma sadəcə internal Threadlar ilə işləyir. Və IDisposable interface-indən törəyib və öz daxilində Waithandle istifadə edir.
+
+Burada biz Release ilə siqnal göndəririk ki digər işləməyən threadlarda işləyə bilər Buna görə də:
+Semaphore və SemaphoreSlim siqnallama mexanizmi sayılır.
+Mutex və Lock isə blocklama mexanizmi sayılır.
+
+
+
+AutoResetEvent - Bir siqnallama mexanizmidir ki, burada əgər critical section boşdursa bir Thread buraxılır və WaitOne müthodu ilə bloklanır Set methodu ilə isə blok açılır və digər thread - i içəri buraxır
+Bu event çox istifadə olunan bir code hissəciyi deyil. Çünki bu spaghetti code sayılır və bu cür code hissəsidə istifadəyə uyğun deyil. Sadəcə istisna hallarda istifadə oluna bilər.
+
+// AutoResetEvent - siqnallama mexanizmi
+
+AutoResetEvent _workEvent = new AutoResetEvent(false);
+AutoResetEvent _mainEvent = new AutoResetEvent(false);
+
+// 1. start
+Thread thread = new(() =>
+{
+    SomeProcess(1);
+});
+thread.Start();
+Console.WriteLine("Waiting Some Process");
+// 1. End
+
+_workEvent.WaitOne(); // Burada bu hissə bloklanır.
+
+// 3. Start
+Console.WriteLine("Starting Main Process");
+
+for (int i = 0; i < 10; i++)
+{
+    Console.WriteLine($"Main proces - {i}");
+    Thread.Sleep(TimeSpan.FromSeconds(1));
+}
+// 3. End
+Console.ReadLine();
+_mainEvent.Set(); // mainEventə siqnal göndərilir
+
+Console.WriteLine("Worker doing some job");
+
+_workEvent.WaitOne(); // Burada da siqnal gözlənilir.
+
+// 5. start
+Console.WriteLine("Complete");
+// 5. end
+
+
+
+void SomeProcess(int seconds)
+{
+    // 2. Start
+    Console.WriteLine("Starting some process");
+    Thread.Sleep(TimeSpan.FromSeconds(seconds));
+    Console.WriteLine("Ok");
+    // 2. End
+
+    Console.ReadLine();
+    _workEvent.Set(); // _workEvent - in bloklandığı hissəyə qayıdırıq və onu davam etdiririk.
+
+    Console.WriteLine("Main process is working");
+    _mainEvent.WaitOne(); // Buradada mainEvent bloklanıb və siqnal gözləyir
+
+    // 4. Start
+    for (int i = 0; i < 10; i++)
+    {
+        Console.WriteLine($"Some process - {i}");
+        Thread.Sleep(TimeSpan.FromSeconds(i));
+    }
+    Console.WriteLine("Some Process End");
+    // 4. End
+
+    Console.ReadLine();
+    _workEvent.Set(); // Burada da siqnal göndərilir.
+}
+
+
+AutoResetEvent – turniket (hər kart basanda yalnız 1 nəfər keçir, sonra bağlanır).
+ManualResetEvent – darvaza (açsan, hamı keçir, sən bağlayana qədər).
+ 
+ 
+ 
+Code-un necə bloklanıb bloklanmadığını system necə təyin edir. İlk öncə bildiyimiz kimi Hər bir datanın arxa planda onunla bağlı ətraflı digər məlumatlar saxlanılır. Bu dataların hesabına CLR code-muzu daha səliqəli və rahat idarə edir.
+Bu objectlərdə bir SyncBlockIndex adlı bir dəyişən var ki buda əgər bloklanmazsa yəni default mənfi bir dəyər olur. amma əgər bloklanarsa burada 0-dan başlayan bir index yaranır.
+
+
+Deadlock — proqramlaşdırmada (xüsusilə paralel işləyən thread-lərdə) iki və ya daha çox işçi (thread) bir-birini gözlədiyi üçün heç vaxt davam edə bilmədiyi vəziyyətdir.
+
+
+
+object lockA = new object();
+object lockB = new object();
+
+static void Main()
+{
+    Thread t1 = new Thread(Thread1Work);
+    Thread t2 = new Thread(Thread2Work);
+
+    t1.Start();
+    t2.Start();
+
+    t1.Join();
+    t2.Join();
+}
+
+void Thread1Work()
+{
+    lock (lockA)
+    {
+        Console.WriteLine("Thread 1: lockA götürüldü");
+        Thread.Sleep(100); // vaxt itkisiylə başqa thread-in işə düşməsinə imkan verir
+
+        lock (lockB)
+        {
+            Console.WriteLine("Thread 1: lockB də götürüldü");
+        }
+    }
+}
+
+void Thread2Work()
+{
+    lock (lockB)
+    {
+        Console.WriteLine("Thread 2: lockB götürüldü");
+        Thread.Sleep(100);
+
+        lock (lockA)
+        {
+            Console.WriteLine("Thread 2: lockA da götürüldü");
+        }
+    }
+}
+}
 
 
 
@@ -395,18 +643,323 @@ class Counter
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
  
  
  
  
  
  
- 
- 
- 
- 
- 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
