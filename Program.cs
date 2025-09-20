@@ -667,22 +667,693 @@ C#-da RTTI əsasən:
 
 
 
+                                                                                    Concellation Token
+
+Concellation Token - Biz token deyən zaman bir bilet və ya açar kimi tərcümə edirik. Code-da da bu bir mexanizmdir ki müəyyən hissələrə giriş imkanı verilir.
+Token-in bloklanmasının yəni ThreadPool Threadinin işinin dayandırılmasının iki növü var. Bunlar Soft(return ilə) və Hard(Exception ilə) olaraq iki hissəyə bölünür.
+*/
+#region Soft version
+
+//using CancellationTokenSource cts = new(); // İlk olaraq CancellationTokenSource obyektini yaradırıq. 
+//// Bu obyekt sayəsində biz istədiyimiz vaxt başqa thread-ə "dayan" siqnalı göndərə biləcəyik.
+
+//CancellationToken cancellationToken = cts.Token; // CancellationTokenSource içindən Token alırıq. 
+//// Bu token başqa methodlara göndəriləcək ki, onlar dayandırılma siqnalını yoxlaya bilsin.
+
+//ThreadPool.QueueUserWorkItem(o =>
+//{
+//    Download(cancellationToken);
+//});
+//// ThreadPool-da yeni iş (task) başladırıq və 
+//// həmin işdə "Download" metodunu çağırırıq, 
+//// Token-i də parametr kimi ötürürük.
+
+//var key = Console.ReadKey();
+//// İstifadəçidən klaviaturadan düymə girişi gözləyirik.
+
+//if (key.Key == ConsoleKey.Enter)
+//{
+//    cts.Cancel();
+//    Thread.Sleep(1000);
+//    Console.WriteLine("Downloading process canceled..");
+//}
+//// Əgər istifadəçi Enter düyməsinə basarsa, 
+//// cts.Cancel() çağrılır → bu, Token-i "işi dayandır" vəziyyətinə gətirir. 
+//// Sonra 1 saniyə gözləyirik və istifadəçiyə prosesi dayandırdığını bildiririk.
+
+//Console.ReadKey();
+//// Proqram sonunda yenidən istifadəçidən düymə gözləyir ki, konsol bağlanmasın.
+
+//void Download(CancellationToken cancellationToken)
+//// Download metodunu yazırıq və Token parametr olaraq qəbul edilir.
+
+//{
+//    Console.WriteLine("Downloading start...");
+//    Thread.Sleep(1000);
+////    Əvvəlcə ekrana "start" yazırıq və 1 saniyə gözləyirik.
+
+//    for (int i = 0; i < 100; i++)
+//    {
+//        if (cancellationToken.IsCancellationRequested) return;
+////        Əgər token işarələnibsə (Cancel olunubsa), 
+////        metodu dərhal dayandırırıq (return).
+
+//        Console.WriteLine($"{i}%");
+//        Thread.Sleep(1000);
+//        Console.Clear();
+////        Əks halda dövr davam edir: faiz göstərilir, 1 saniyə gözlənilir və ekran təmizlənir.
+//    }
+
+//    Console.WriteLine("Download process completed..");
+////    Əgər for dövrü bitdisə, deməli yükləmə uğurla tamamlanıb.
+//}
+
+#endregion
+
+#region CancellationToken with exception
+//using CancellationTokenSource cts = new();
+//// CancellationTokenSource obyektini yaradırıq. Bu bizə "cancel" siqnalı vermək imkanı verir.
+
+//CancellationToken cancellationToken = cts.Token;
+//// cts içindən Token alırıq, bu token başqa thread-lərdə istifadə ediləcək ki, 
+//// "işi dayandırmaq lazımdırmı?" sualına cavab versin.
+
+//ThreadPool.QueueUserWorkItem(o =>
+//{
+//    try
+//    {
+//        Download(cancellationToken);
+//        // ThreadPool-da yeni iş başladırıq. Bu iş "Download" metodunu icra edir. 
+//        // Token də metodun içində istifadə olunacaq.
+//    }
+//    catch (OperationCanceledException ex)
+//    // Əgər token "cancel" olarsa və metod ThrowIfCancellationRequested() atarsa,
+//    // OperationCanceledException atılacaq.
+//    {
+//        Console.WriteLine(ex.Message);
+//        Console.WriteLine("Downloading process cancel!");
+//        // İstifadəçiyə məlumat veririk ki, proses dayandırıldı.
+//    }
+//});
+
+//var key = Console.ReadKey();
+//// İstifadəçidən hər hansı düyməyə basmasını gözləyirik.
+
+//if (key.Key == ConsoleKey.Enter)
+//// Əgər Enter düyməsinə basılıbsa:
+//{
+//    cts.Cancel();
+//    // Token-ə "dayandır" siqnalı göndəririk.
+//    Thread.Sleep(1000);
+//    // Kiçik gözləmə veririk ki, digər thread dayandırılsın.
+//}
+
+//Console.ReadKey();
+//// Konsol bağlanmasın deyə yenidən düymə gözləyirik.
+
+//void Download(CancellationToken token)
+//// Yükləmə prosesini imitasiya edən metod.
+//{
+//    Console.WriteLine("Downloading start...");
+//    Thread.Sleep(1000);
+
+//    for (int i = 0; i < 100; i++)
+//    {
+//        token.ThrowIfCancellationRequested();
+//        // Əgər token cancel olunubsa → buradan OperationCanceledException atılacaq.
+//        // Bu da try/catch blokunda tutulacaq.
+
+//        Console.WriteLine($"{i}%");
+//        // Faiz dəyərini ekrana yazırıq (yüklənmə göstəricisi).
+
+//        Thread.Sleep(100);
+//        // Kiçik gecikmə → yüklənmə real kimi görünsün.
+
+//        Console.Clear();
+//        // Ekranı təmizləyirik ki, faiz yeniləndikcə səliqəli çıxsın.
+//    }
+
+//    Console.WriteLine("Downloading end...");
+//    // Əgər dövr tam bitdisə, deməli yükləmə uğurla tamamlanıb.
+//}
+
+#endregion
+/*
+
+                                                                                TPL - Task Parallel Library
+
+Task Parallel Library - Asinxron programlaşdırmanın bir hissəsidir və arxa planda ThreadPool istifadə olunur. Thread və ThreadPooldan üstünlüklərindən biri dah çox hazır methodlarının olmasıdır ki 
+bu methodlarda bizə daha çox idarəetmə imkanı verir. Task daxilinde işləyən Threadlar Backgrpund thread-dir.
+Task daxilinə Action və CancellationToken göndərə bilərik.
+*/
+
+#region Task Creating running
+
+//// Task1 -> Sadə Task obyekti yaradılır, amma hələ başlamır
+//Task task1 = new Task(() =>
+//{
+//    TaskMethod("Task1"); // Task icra olunanda bu metod çağırılacaq
+//});
+//// Task2 -> Task1 ilə eyni, sadəcə adı fərqlidir
+//Task task2 = new Task(() =>
+//{
+//    TaskMethod("Task2");
+//});
+//// Task3 -> Task.Run istifadə olunur, Task həm yaradılır, həm də dərhal işə düşür
+//Task task3 = Task.Run(() =>
+//{
+//    TaskMethod("Task3");
+//});
+//// Task4 -> Task.Factory.StartNew istifadə olunur, bu da həm yaradıb həm dərhal işə salır
+//Task task4 = Task.Factory.StartNew(() =>
+//{
+//    TaskMethod("Task4");
+//});
+//// Task5 -> Task yaradılır, amma əlavə olaraq LongRunning flag verilmişdir
+//// Bu, uzun müddətli task olduğunu bildirir və çox vaxt ThreadPool əvəzinə ayrı bir thread açılır
+//Task task5 = new Task(() =>
+//{
+//    TaskMethod("Task5");
+//}, TaskCreationOptions.LongRunning); // Bu hissə bir enum-dır ki yaranma formasını təyin edirik.
+//// ---------------- TASK-ların işə salınması ----------------
+//task1.Start(); // Task1 əvvəldən başlamamışdı, indi işə düşür
+//task2.Start(); // Task2 də Start() ilə işə düşür
+//task5.Start(); // Task5 də Start() ilə işə düşür
+//// task3 və task4 artıq yaradılan anda işə düşdüyünə görə Start() lazım deyil
+//// ---------------- TASK-ların tamamlanmasını gözləmək ----------------
+//task1.Wait(); // Task1 bitməyənə qədər gözləyir
+//task2.Wait(); // Task2 bitməyənə qədər gözləyir
+//task3.Wait(); // Task3 bitməyənə qədər gözləyir
+//task4.Wait(); // Task4 bitməyənə qədər gözləyir
+//task5.Wait(); // Task5 bitməyənə qədər gözləyir
+////Console.ReadLine(); // Əlavə olaraq proqramın bağlanmaması üçün istifadə oluna bilər
+//// ---------------- TASK-ların çağırdığı metod ----------------
+//void TaskMethod(string message)
+//{
+//    Console.WriteLine($@"
+//Name:           {message}                          // Hansi Task olduğunu göstərir
+//Id:             {Thread.CurrentThread.ManagedThreadId}   // Hansi thread üzərində icra olunur
+//IsBackground:   {Thread.CurrentThread.IsBackground}       // Thread background-durmu?
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread} // ThreadPool-dandırmı, yoxsa ayrıca thread-dir?
+//");
+//}
+
+#endregion
+
+#region Returning
+// Taskın əsas üstünlüyü də dəyər return edə bilməsidir ki bu da Thread və ThreadPool-un edə bilmədiyi məsələdir.
+// Void Task olan zaman biz sadə Task istifdə edə bilərik amma əgər Task bir dəyər return edirsə Generic Task istifadə olunmalıdır.
+
+//Task<int> task = Task.Run(() => TaskReturnMethod("Task1", 3));
+
+
+//var result = task.Result; // Burada yazdığımız Result hissəsi dəyər qaytarmaqla birlikdə Join işini görür ki buda Taskın və programın dəyər qaytarılmamış bitməməsinin qarşısını alır.
+
+//Console.WriteLine(result);
+
+
+//int TaskReturnMethod(string message, int second)
+//{
+//    Console.WriteLine($@"
+//Name:           {message}
+//Id:             {Thread.CurrentThread.ManagedThreadId}
+//IsBackground:   {Thread.CurrentThread.IsBackground}
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread}
+//");
+//    Thread.Sleep(TimeSpan.FromSeconds(second));
+//    return second * 10;
+//}
+
+
+#endregion
+
+/*
+
+
+
+
+                                                                            Continuations 
+
+Continuations - Davametmələr - Task bitərsə, exception atarsa və ya dayandırılarsa işləyəcək code blockudur.
+Continuations-ın 5 əsas növü var:
+1. Simple Continuation - Sadə davametmə - Bir Task bitir və bir method işə düşür.
+2. ContinueWhenAll - Bütün Tasklar bitdikdən sonra davam edir.
+3. Multiple Continuation - Çoxlu davametmə - Bir task bitdikdə bir neçə method işə düşür.
+4. ContinueWithAny - bir neçə Task qrupundan hər hansı bir task bitdikdə işə düşən method.
+5. Continuation with child Task - İç içə Tasklar olan zaman bütün daxildə olan Tasklar öz işlərini görür və sonra bu method işə düşür.
+
+*/
+#region Continue with OnlyRunToCompletetion
+//// Bu region kodu qruplaşdırmaq üçündür (IDE-də rahatlıq üçün).
+//// İki Task<int> yaradılır, amma hələ başlamır
+//var firstTask = new Task<int>(() => TaskMethod("First Task", 3));  // 3 saniyə işləyəcək
+//var secondTask = new Task<int>(() => TaskMethod("Second Task", 5)); // 5 saniyə işləyəcək
+//// ------------------- firstTask üçün ContinueWith -------------------
+//firstTask.ContinueWith(t =>
+//{
+//    Console.WriteLine("Continue With task start.");   // firstTask bitəndən sonra işə düşür
+//    Console.WriteLine($"Task Result = {t.Result}");   // firstTask nəticəsini çap edir
+//    Console.WriteLine($@"
+//Id:             {Thread.CurrentThread.ManagedThreadId}          // İcra olunan thread Id-si
+//IsBackground:   {Thread.CurrentThread.IsBackground}             // Thread background-durmu?
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread}       // ThreadPool-dandırmı?
+//");
+//}, TaskContinuationOptions.OnlyOnRanToCompletion);
+//// Bu continuation yalnız firstTask uğurla bitəndə işləyəcək 
+//// (yəni faulted və ya canceled olmayanda)
+//// ------------------- firstTask işə salınır -------------------
+//firstTask.Start();
+//// Main thread öz işinə davam edir (asinxron icra görünsün deyə dövr yazılıb)
+//for (int i = 0; i < 10; i++)
+//{
+//    Console.WriteLine($"Main method - {i}"); // Əsas metodun axını davam edir
+//    Thread.Sleep(10); // kiçik gecikmə
+//}
+//// ------------------- secondTask üçün ContinueWith -------------------
+//secondTask.ContinueWith(t =>
+//{
+//    OtherMethod(); // Əgər secondTask uğurla bitdisə və ya cancel olmayıbsa, bu metod çağırılacaq
+//}, TaskContinuationOptions.NotOnCanceled | TaskContinuationOptions.NotOnFaulted);
+//// Burada şərt budur: secondTask nə canceled, nə də faulted olmamalıdır
+//// ------------------- Task-ların gözlənməsi -------------------
+//// firstTask və secondTask bitənə qədər main thread gözləyir
+//Task.WaitAll(firstTask, secondTask);
+//Console.WriteLine("End"); // Hamısı bitdikdən sonra ekrana yazılır
+//// ------------------- Metodlar -------------------
+//int TaskMethod(string message, int second)
+//{
+//    Console.WriteLine($"Task - {message} start"); // Task başladığını göstərir
+//    Console.WriteLine($@"
+//Id:             {Thread.CurrentThread.ManagedThreadId}          // Hansı thread-də işləyir
+//IsBackground:   {Thread.CurrentThread.IsBackground}
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread}
+//");
+//    Thread.Sleep(TimeSpan.FromSeconds(second)); // Göstərilən qədər saniyə gözləyir
+//    Console.WriteLine($"Task - {message} end"); // Task bitdi mesajı
+//    return second * 10; // Nəticə qaytarılır
+//}
+//void OtherMethod()
+//{
+//    Console.WriteLine("Other method start"); // Metod başladı
+//    Console.WriteLine($@"
+//Id:             {Thread.CurrentThread.ManagedThreadId}          // Hansı thread-də işləyir
+//IsBackground:   {Thread.CurrentThread.IsBackground}
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread}
+//");
+//    Console.WriteLine("Other method end"); // Metod bitdi
+//}
+#endregion
+
+#region ContinueWith OnlyOnFaulted
+//try
+//{
+//    // ------------------- Task yaradılır -------------------
+//    var firstTask = new Task<int>(() => TaskMethod("FirstTask", 3));
+//    // Bu Task int qaytarır, 3 saniyəlik işləyəcək
+//    // ------------------- ContinueWith əlavə olunur -------------------
+//    firstTask.ContinueWith(t =>
+//    {
+//        Console.WriteLine("ContinueWith task start"); // Əgər fault olarsa işləyəcək
+//        Console.WriteLine($@"
+//Id:             {Thread.CurrentThread.ManagedThreadId}          // Thread Id
+//IsBackground:   {Thread.CurrentThread.IsBackground}             // Background thread?
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread}       // ThreadPool üzərində işləyirmi?
+//");
+//    }, TaskContinuationOptions.OnlyOnFaulted);
+//    // Bu continuation yalnız Task uğursuz (faulted) olarsa icra olunacaq
+//    // Yəni Task-da exception atılsa, bu blok işləyəcək
+//    // ------------------- Task işə salınır -------------------
+//    firstTask.Start();
+//    // Main thread öz işinə davam edir
+//    for (int i = 0; i < 10; i++)
+//    {
+//        Console.WriteLine($"Main thread - {i}"); // Main thread dövr edir
+//        Thread.Sleep(10); // kiçik gecikmə
+//    }
+//    // ------------------- Task-ın bitməsini gözləyirik -------------------
+//    firstTask.Wait(); // firstTask tamamlanana qədər main gözləyir
+//    Console.WriteLine("End"); // Task uğurla bitsə, proqram sonunda "End" yazır
+//}
+//catch (Exception ex)
+//{
+//    // Əgər Task-da və ya başqa yerdə exception atılsa,
+//    // bu blokda tutulacaq
+//    Console.WriteLine(ex.Message);
+//}
+//// Proqramın sonunda istifadəçi düymə basana qədər gözləyirik
+//Console.ReadLine();
+//// ------------------- Task-da çağırılan metod -------------------
+//int TaskMethod(string message, int second)
+//{
+//    Console.WriteLine($"Task - {message} start"); // Task başladı
+//    Console.WriteLine($@"
+//Id:             {Thread.CurrentThread.ManagedThreadId}          // Hansı thread-də işləyir
+//IsBackground:   {Thread.CurrentThread.IsBackground}             // Background-durmu?
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread}       // ThreadPool üzərində işləyirmi?
+//");
+//    Thread.Sleep(TimeSpan.FromSeconds(second)); // 3 saniyəlik gecikmə
+//    Console.WriteLine($"Task - {message} end"); // Task bitdi
+//    // Əgər burada exception atsaydıq (məsələn: throw new Exception("Xəta");),
+//    // onda yuxarıdakı ContinueWith (OnlyOnFaulted) işə düşəcəkdi.
+//    return second * 10; // Normal halda nəticə qaytarır
+//}
+#endregion
+
+#region Continue with Task
+
+//// Task yaradılır və içində TaskMethod çağırılır
+//// Bu metod int qaytarır (ona görə Task<int>)
+//var firstTask = new Task<int>(() => TaskMethod("FirstTask", 3));
+//// ContinueWith: firstTask uğurla bitəndə icra olunacaq
+//// TaskContinuationOptions.OnlyOnRanToCompletion → ancaq uğurla bitəndikdə işləyəcək
+//// TaskContinuationOptions.LongRunning → davam işini yeni threaddə başlada bilər (ThreadPool-dan kənar)
+//firstTask.ContinueWith(t =>
+//{
+//    Console.WriteLine("ContinueWith task start");
+//    Console.WriteLine($@"
+//Id:             {Thread.CurrentThread.ManagedThreadId}   // Hal-hazırki thread ID
+//IsBackground:   {Thread.CurrentThread.IsBackground}      // Thread background olub-olmaması
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread} // ThreadPool thread-də işləyib-işləmədiyi
+//");
+//}, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.LongRunning);
+//// Task start edilir
+//firstTask.Start();
+//// Main thread paralel olaraq işləyir
+//for (int i = 0; i < 10; i++)
+//{
+//    Console.WriteLine($"Main thread - {i}");
+//    Thread.Sleep(10); // Kiçik gecikmə veririk
+//}
+//// firstTask bitənə qədər gözləyirik
+//firstTask.Wait();
+//Console.WriteLine("End");
+//Console.ReadLine(); // Konsol açıq qalsın
+
+
+//// TaskMethod: sadəcə simulyasiya üçün uzunmüddətli iş görür
+using System.Net;
+using System.Runtime.CompilerServices;
+
+//static int TaskMethod(string name, int seconds)
+//{
+//    Console.WriteLine($"{name} started.");
+
+//    for (int i = 0; i < seconds; i++)
+//    {
+//        Console.WriteLine($"{name} working... {i + 1} sec");
+//        Thread.Sleep(1000); // 1 saniyəlik iş simulyasiyası
+//    }
+
+//    Console.WriteLine($"{name} finished.");
+//    return seconds; // nəticə qaytarır
+//}
+#endregion
+
+#region ContinueWith ExecuteSyncronously
+//// Task yaradılır: TaskMethod çağırılacaq
+//var firstTask = new Task<int>(() => TaskMethod("FirstTask", 3));
+
+//// ContinueWith əlavə edirik
+//// TaskContinuationOptions.OnlyOnRanToCompletion → yalnız uğurla bitəndə işləyəcək
+//// TaskContinuationOptions.ExecuteSynchronously → davam işini mümkün olduqda
+//// eyni thread üzərində icra edir (yeni thread açmır, daha sürətli olur)
+//firstTask.ContinueWith(t =>
+//{
+//    Console.WriteLine("ContinueWith task start");
+//    Console.WriteLine($@"
+//Id:             {Thread.CurrentThread.ManagedThreadId}   // Hal-hazırki thread ID
+//IsBackground:   {Thread.CurrentThread.IsBackground}      // Thread background olub-olmaması
+//IsThreadPool:   {Thread.CurrentThread.IsThreadPoolThread} // ThreadPool-da işləyib-işləmədiyi
+//");
+//}, TaskContinuationOptions.OnlyOnRanToCompletion | TaskContinuationOptions.ExecuteSynchronously);
+
+//// Task start edilir
+//firstTask.Start();
+
+//// Task tamamlanana qədər gözlənilir
+//firstTask.Wait();
+
+//Console.WriteLine("End");
+//Console.ReadLine(); // Konsol bağlı qalmasın
+
+#endregion
+
+#region Task Status
+// Bu işlər bitdikdə bizdə bir sual yarana bilər ki axı bu Task necə bilir ki o səhv edib çixib yoxsa bitib.
+// Bu zaman bizə Task Status enum-ı yaranır və Task daxilində bu datalara uyğun bir siqnal göndərilir.
+// 
+/*
+ Created
+ WaitingForActivation
+ WaitingToRun 
+ Running
+ WaitingForChildrenToComplete
+ RanToCompletion
+ Canceled
+ Faulted
+ 
+*/
+
+//var firstTask = new Task<int>(() => TaskMethod("FirstTask", 3));
+//Console.WriteLine(firstTask.Status);
+//Thread.Sleep(100);
+//try
+//{
+//    Console.WriteLine(firstTask.Status);
+//    firstTask.Start();
+//    while (true)
+//    {
+//        Console.WriteLine(firstTask.Status);
+//        Thread.Sleep(100);
+//        if (firstTask.IsCompleted) break;
+//    }
+//    firstTask.Wait();
+//    Console.WriteLine(firstTask.Status);
+
+//}
+//catch (Exception)
+//{
+//    Console.WriteLine(firstTask.Status);
+//}
+#endregion
+
+/*
 
 
 
 
 
+                                                                    Waitings
+
+Waiting - Taskın hər işini bitirməsini gözləməsidir məsələn burada bir dəyər gözləmə və s ola bilər. 
+3 əsas növü var.
+1. Single Wait - Program sadəcə bir Taskın işini bitirməsini gözləyir 
+1. Wait All - Bütün Taskların bitməsini gözləyir
+1. Wait Any - Hər hansı bir Taskın bitməsini gözləyir
+ 
+ */
+
+#region Single Wait
+//var firstTask = new Task<int>(() => TaskMethod("FirstTask", 3));
+//firstTask.Start();
+//for (int i = 0; i < 10; i++)
+//{
+//    Console.WriteLine($"Main thread - {i}");
+//    Thread.Sleep(10);
+//}
+////Console.WriteLine(firstTask.Result);
+//firstTask.Wait();
+//Console.WriteLine("Main end");
+#endregion
+
+#region Wait all
+//var firstTask = new Task<int>(() => TaskMethod("FirstTask", 3));
+//var secondTask = new Task<int>(() => TaskMethod("SecondTask", 3));
+//firstTask.Start();
+//secondTask.Start();
+//for (int i = 0; i < 10; i++)
+//{
+//    Console.WriteLine($"Main thread - {i}");
+//    Thread.Sleep(10);
+//}
+
+//Task.WaitAll(firstTask, secondTask);
+//Console.WriteLine("Main end");
+#endregion
+
+#region Wait any
+//var firstTask = new Task<int>(() => TaskMethod("FirstTask", 3));
+//var secondTask = new Task<int>(() => TaskMethod("SecondTask", 1));
+//firstTask.Start();
+//secondTask.Start();
+//for (int i = 0; i < 10; i++)
+//{
+//    Console.WriteLine($"Main thread - {i}");
+//    Thread.Sleep(10);
+//}
+
+//Task.WaitAny(firstTask, secondTask);
+//Console.WriteLine("Main end");
+#endregion
+
+#region Waiting child
+//var grandFatherTask = new Task<int>(() => {
+
+//    var fatherTask = Task.Factory.StartNew(() =>
+//    {
+//        var grandSonTask = Task.Factory.StartNew(() =>
+//        {
+//            TaskMethod("Grandson task", 8);
+//        }, TaskCreationOptions.AttachedToParent);
+//        TaskMethod("Father task", 5);
+//    }, TaskCreationOptions.AttachedToParent);
+
+//    return TaskMethod("GrandFather task", 3);
+//});
+//grandFatherTask.Start();
+//Console.WriteLine(grandFatherTask.Result);
+//Console.WriteLine("End");
+
+#endregion
+
+/*
 
 
 
+                                                                Async Await
+
+Biz asynchron programlaşdırmaya başlayan zaman ilk olaraq Thread - ThreadPool - Task keçmişik və bunlar bir birlərinin daha üstün formalarıdır.
+İndi isə sıra - syntax sugar + love = async await öyrənəciyik və niyə məhz syntax sugar və love birləşməsi olmasını başa düşməyəçalışacağıq.
+
+Asynchron yüklənmə zamanı bir neçə iş görülürsə bu zaman bir Message Queue yaranır ki burada işlər sıra ilə tənzimlənir və hər kəsin sırası ilə çıxır.
+Buda bizə fərqli bir Thread iş görən Thred daxilində olan bir dataya daxil olmaq istəyərsə bu system ona icazə vermir.
+Bunun üçündə biz task yaranan zaman sinxron işləməsini təmin etməliyik.
+
+DİQQƏT !!!!!!!!!!!
+Əgər bizim methodumuz async-dirsə bu zaman adlandırmada buna uyğun olmalıdır. Məsələn : async void SomeMethodAsync(){some code block};
 
 
+var task = new Task(()=>
+{
+   some code parts 
+}),TaskScheduler.FromCurrentSynchronizationContext();
+ 
+ */
+#region async await simple
+
+//Console.WriteLine($"Main start in Thread : {Thread.CurrentThread.ManagedThreadId}"); // Main Thread
+////SomeMethod();
+//SomeMethodAsync();
+//Console.WriteLine($"Main end in Thread : {Thread.CurrentThread.ManagedThreadId}"); // Main Thread
+//Console.ReadKey();
+//void SomeMethod()
+//{
+//    Console.WriteLine($"SomeMethod start in Thread : {Thread.CurrentThread.ManagedThreadId}"); // Main Thread
+//    var result = Task.Run<int>(() =>
+//    {
+//        Console.WriteLine($"SomeMethod Task start in Thread: {Thread.CurrentThread.ManagedThreadId}"); // Some ThreadPool Thread
+//        Thread.Sleep(1000);
+//        Console.WriteLine($"SomeMethod Task end in Thread: {Thread.CurrentThread.ManagedThreadId}"); // Some ThreadPool Thread
+//        return 77;
+//    });
+//    Console.WriteLine($"SomeMethod end in Thread : {Thread.CurrentThread.ManagedThreadId} Result:{result.Result}"); // Main Thread
+//}
+//async void SomeMethodAsync()
+//{
+//    Console.WriteLine($"SomeMethod start in Thread : {Thread.CurrentThread.ManagedThreadId}"); // Main Thread
+//    var result = await Task.Run<int>(() =>
+//    {
+//        Console.WriteLine($"SomeMethodAsync Task start in Thread: {Thread.CurrentThread.ManagedThreadId}"); // Same ThreadPool Thread
+//        Thread.Sleep(1000);
+//        Console.WriteLine($"SomeMethodAsync Task end in Thread: {Thread.CurrentThread.ManagedThreadId}"); // Same ThreadPool Thread
+//        return 77;
+//    });
+//    Console.WriteLine($"SomeMethod end in Thread : {Thread.CurrentThread.ManagedThreadId} Result : {result}"); // Same ThreadPool Thread 
+//} // Burada yazılan tək async await keywordları bildirir ki result qaytarılan sətir elə Taskın işlədiyi Thread-da işini bitirir və buda bizə daha sürətli işləmə təmin edir.
+#endregion
+
+#region simple
+WebClient webClient = new();
+string url = @"https://turbo.az";
+async void DownloadAsync()
+{
+    var text = await webClient.DownloadStringTaskAsync(url);
+    Console.WriteLine(text);
+}
+
+#endregion
+
+#region with return
+
+//// Biz əgər async methodda dəyər return ediriksə bu zaman sadə Task-dan yox Generic Taskdan istifadə edirik
 
 
+//async Task<string> SomeAsync(string url)
+//{
+//    return await webClient.DownloadStringTaskAsync(url);
+//}
+
+//var task = await SomeAsync(url); // Burada task yerinə birbaşa taskın resultunu almaq istəsək sadəcə await yazaraq həll edirik.
+//Console.WriteLine(task);
+
+#endregion
+
+#region Inside async await
+//Some some = new();
+//some.SomeMethod();
+//class Some
+//{
+//    public void SomeMethod()
+//    {
+//        Console.WriteLine($"Some method start in Thread: {Thread.CurrentThread.ManagedThreadId}");
+//        Console.WriteLine("Some method begin");
+//        Thread.Sleep(1000);
+//        Console.WriteLine("SomeMethod end");
+//    }
+
+//    public void SomeMethodAsync()
+//    {
+//        AsyncStateMachine stateMachine = new AsyncStateMachine();
+//        stateMachine.some = this;
+//        stateMachine.builder= AsyncVoidMethodBuilder.Create();
+//        stateMachine.state = -1;
+//        stateMachine.builder.Start(ref stateMachine);
+//    }
+//}
+
+//struct AsyncStateMachine : IAsyncStateMachine
+//{
+//    public int state;
+//    public Some some;
+//    private TaskAwaiter awaiter;
+//    public AsyncVoidMethodBuilder builder;
+//    public void MoveNext()
+//    {
+//        if (state == -1)
+//        {
+//            Console.WriteLine($"Start Thread ID : {Thread.CurrentThread.ManagedThreadId}");
+//            Task t = Task.Factory.StartNew(some.SomeMethod);
+//            awaiter = t.GetAwaiter();
+//            state = 0;
+//            builder.AwaitOnCompleted(ref awaiter, ref this);
+//        }
+//        else if (state == 0)
+//        {
+//            Console.WriteLine($"Start Thread ID : {Thread.CurrentThread.ManagedThreadId}");
+//        }
+//    }
+
+//    public void SetStateMachine(IAsyncStateMachine stateMachine)
+//    {
+//        builder.SetStateMachine(stateMachine);
+//    }
+//}
 
 
+#endregion
 
 
+/*
 
 
 
