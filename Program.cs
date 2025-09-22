@@ -803,7 +803,7 @@ Token-in bloklanmasının yəni ThreadPool Threadinin işinin dayandırılmasın
                                                                                 TPL - Task Parallel Library
 
 Task Parallel Library - Asinxron programlaşdırmanın bir hissəsidir və arxa planda ThreadPool istifadə olunur. Thread və ThreadPooldan üstünlüklərindən biri dah çox hazır methodlarının olmasıdır ki 
-bu methodlarda bizə daha çox idarəetmə imkanı verir. Task daxilinde işləyən Threadlar Backgrpund thread-dir.
+bu methodlarda bizə daha çox idarəetmə imkanı verir. Task daxilinde işləyən Threadlar Background thread-dir.
 Task daxilinə Action və CancellationToken göndərə bilərik.
 */
 
@@ -1055,6 +1055,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 //static int TaskMethod(string name, int seconds)
 //{
@@ -1224,6 +1225,11 @@ Waiting - Taskın hər işini bitirməsini gözləməsidir məsələn burada bir
 
                                                                 Async Await
 
+async → metodun içində await istifadə edə biləcəyini bildirir. Metodu avtomatik olaraq Task və ya Task<T> qaytara bilən formata çevirir. Amma async metodu avtomatik paralel işləmir, sadəcə asinxron əməliyyatların işlənməsi üçün çərçivə yaradır.
+await → Task-ın nəticəsini gözləyir. Burada əsas məqam: gözləyən thread bloklanmır, sadəcə iş tamamlanana qədər control geri qaytarılır (continuation mexanizmi).
+Yəni await kodu "dayandırmır", sadəcə "yarımçıq saxlayıb sonra davam etdirir".
+Task ilə münasibət: əksər async metodlar Task qaytarır. await isə həmin Task-ın nəticəsini asanlıqla almağa imkan verir. Əgər async metod heç nə qaytarmırsa → Task, nəticə qaytarırsa → Task<T> istifadə olunur.
+
 Biz asynchron programlaşdırmaya başlayan zaman ilk olaraq Thread - ThreadPool - Task keçmişik və bunlar bir birlərinin daha üstün formalarıdır.
 İndi isə sıra - syntax sugar + love = async await öyrənəciyik və niyə məhz syntax sugar və love birləşməsi olmasını başa düşməyəçalışacağıq.
 
@@ -1233,6 +1239,11 @@ Bunun üçündə biz task yaranan zaman sinxron işləməsini təmin etməliyik.
 
 DİQQƏT !!!!!!!!!!!
 Əgər bizim methodumuz async-dirsə bu zaman adlandırmada buna uyğun olmalıdır. Məsələn : async void SomeMethodAsync(){some code block};
+
+await → Task tamamlanana qədər bloklamadan gözləyir.
+Continuation → await-dən sonra gələn kodun Task bitəndə icra mexanizmi.
+SynchronizationContext → await sonrası hansı thread-də davam edəcəyimizi idarə edir.
+ThreadPool → await zamanı arxa planda işlərin icrası üçün istifadə olunur.
 
 
 var task = new Task(()=>
@@ -1356,30 +1367,24 @@ async void DownloadAsync()
 
 
 /*
-
-
                                                                     Parallel & PLINQ
-
-
- 
- 
 */
 
-List<Student> students = new List<Student>();
+//List<Student> students = new List<Student>();
 
-for (int i = 0; i < 10; i++)
-{
-    students.Add(new Student()
-    {
-        Id = i + 1,
-        FirstName = Faker.NameFaker.FirstName(),
-        LastName = Faker.NameFaker.LastName(),
-        Age = Faker.NumberFaker.Number(18, 75),
-        Mark = Faker.NumberFaker.Number(10, 120) / 10.0,
-        Email = Faker.InternetFaker.Email()
+//for (int i = 0; i < 10; i++)
+//{
+//    students.Add(new Student()
+//    {
+//        Id = i + 1,
+//        FirstName = Faker.NameFaker.FirstName(),
+//        LastName = Faker.NameFaker.LastName(),
+//        Age = Faker.NumberFaker.Number(18, 75),
+//        Mark = Faker.NumberFaker.Number(10, 120) / 10.0,
+//        Email = Faker.InternetFaker.Email()
 
-    });
-}
+//    });
+//}
 
 #region Task When Continue
 
@@ -1408,6 +1413,7 @@ for (int i = 0; i < 10; i++)
 //        Console.WriteLine("Continue with Task");
 //    });
 //Console.WriteLine("End");
+//await Task.WhenAll(task1, task2) → hər iki Task tamamlanana qədər gözləyir, amma əgər hər hansı Task exception atsa, WhenAll aggregate exception atır.
 
 //students.ForEach(Console.WriteLine);
 
@@ -1424,7 +1430,7 @@ for (int i = 0; i < 10; i++)
 Amma diqqət yetirməli olunan hissə Critical Section problemidir ki bunun da qarşısını Concurrent Collections istifadə olunması və ya istifadəçinin lock istifadəsidir ki 
 Buradada məsuliyyət developer-ın üzərinə düşür. Çünki Parallel ThreadSafe deyil və bu da Critical Section probleminin əsas səbəbidir.
 Parallel classı daha çox böyük və çoxsaylı datalarda və methodlarda istifadə olunur ki buda bizə performans üstünlüyü təmin edir. Əgər biz kiçik və azsaylı data ilə
-işləyiriksə bu zamanda sadə for iləişləmək daha məqsədəuyğundur.
+işləyiriksə bu zamanda sadə for ilə işləmək daha məqsədəuyğundur.
 */
 
 
@@ -1554,100 +1560,85 @@ Burada da gördüyümüz kimi burada Concurrent Collections istifadəsi daha dü
 */
 
 
+//Stopwatch stopwatch = new();
+//stopwatch.Start();
+//ConcurrentBag<string> namesParallel = [];
+//object obj = new();
+//Parallel.ForEach(students, s =>
+//{
+//    if (s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com"))
+//    {
+//        namesParallel.Add($"{s.FirstName} {s.LastName}");
+//        Thread.Sleep(1);
 
-Stopwatch stopwatch = new();
-stopwatch.Start();
-ConcurrentBag<string> namesParallel = [];
-object obj = new();
-Parallel.ForEach(students, s =>
-{
-    if (s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com"))
-    {
-        namesParallel.Add($"{s.FirstName} {s.LastName}");
-        Thread.Sleep(1);
+//    }
+//});
 
-    }
-});
+//var parallelTicks = stopwatch.ElapsedTicks;
+//stopwatch.Restart();
 
-var parallelTicks = stopwatch.ElapsedTicks;
-stopwatch.Restart();
+//List<string> namesLinq = students
+//    .Where(s =>
+//    {
+//        Thread.Sleep(1);
+//        return s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com");
+//    })
+//    .Select(s => $"{s.FirstName} {s.LastName}")
+//    .ToList();
 
-List<string> namesLinq = students
-    .Where(s =>
-    {
-        Thread.Sleep(1);
-        return s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com");
-    })
-    .Select(s => $"{s.FirstName} {s.LastName}")
-    .ToList();
+//var linqTicks = stopwatch.ElapsedTicks;
+//stopwatch.Restart();
 
-var linqTicks = stopwatch.ElapsedTicks;
-stopwatch.Restart();
+//List<string> namesPLinq = students
+//    .AsParallel()
+//    .Where(s =>
+//    {
+//        Thread.Sleep(1);
+//        return s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com");
+//    })
+//    .Select(s => $"{s.FirstName} {s.LastName}")
+//    .ToList();
 
-List<string> namesPLinq = students
-    .AsParallel()
-    .Where(s =>
-    {
-        Thread.Sleep(1);
-        return s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com");
-    })
-    .Select(s => $"{s.FirstName} {s.LastName}")
-    .ToList();
+//var plinqTicks = stopwatch.ElapsedTicks;
+//stopwatch.Restart();
 
-var plinqTicks = stopwatch.ElapsedTicks;
-stopwatch.Restart();
+//stopwatch.Stop();
 
-stopwatch.Stop();
+//Console.WriteLine($"LINQ: {linqTicks}");
+//Console.WriteLine($"Parallel: {parallelTicks}");
+//Console.WriteLine($"PLINQ: {plinqTicks}");
 
-Console.WriteLine($"LINQ: {linqTicks}");
-Console.WriteLine($"Parallel: {parallelTicks}");
-Console.WriteLine($"PLINQ: {plinqTicks}");
+//Console.WriteLine();
 
-Console.WriteLine();
-
-Console.WriteLine($"LINQ count: {namesLinq.Count}");
-Console.WriteLine($"Parallel count: {namesParallel.Count}");
-Console.WriteLine($"PLINQ count: {namesPLinq.Count}");
+//Console.WriteLine($"LINQ count: {namesLinq.Count}");
+//Console.WriteLine($"Parallel count: {namesParallel.Count}");
+//Console.WriteLine($"PLINQ count: {namesPLinq.Count}");
 
 #endregion
 
+//class Student
+//{
+//    public int Id { get; set; }
+//    public string FirstName { get; set; }
+//    public string LastName { get; set; }
+//    public int Age { get; set; }
+//    public string Email { get; set; }
+//    public string Group { get; set; }
+//    public double Mark { get; set; }
+//    public override string ToString()
+//    {
+//        return $"""
+//            Id:             {Id}
+//            FirstName:      {FirstName}
+//            LastName:       {LastName}
+//            Age:            {Age}
+//            Email:          {Email}
+//            Group:          {Group}
+//            Mark:           {Mark}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-class Student
-{
-    public int Id { get; set; }
-    public string FirstName { get; set; }
-    public string LastName { get; set; }
-    public int Age { get; set; }
-    public string Email { get; set; }
-    public string Group { get; set; }
-    public double Mark { get; set; }
-    public override string ToString()
-    {
-        return $"""
-            Id:             {Id}
-            FirstName:      {FirstName}
-            LastName:       {LastName}
-            Age:            {Age}
-            Email:          {Email}
-            Group:          {Group}
-            Mark:           {Mark}
-
-            """;
-    }
-}
+//            """;
+//    }
+//}
 /*
 
 
