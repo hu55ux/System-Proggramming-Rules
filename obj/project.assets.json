@@ -1,11 +1,36 @@
 {
   "version": 3,
   "targets": {
-    "net8.0": {}
+    "net8.0": {
+      "Faker/1.2.0": {
+        "type": "package",
+        "compile": {
+          "lib/Faker.dll": {}
+        },
+        "runtime": {
+          "lib/Faker.dll": {}
+        }
+      }
+    }
   },
-  "libraries": {},
+  "libraries": {
+    "Faker/1.2.0": {
+      "sha512": "FvYt17xHV8R0DGb3O5scLtiWK8RrBuG0feDAWuzdM1l1bS62JOuhNgf4BgJthGFYZrEMKoU5XgCODLtXpS0cvw==",
+      "type": "package",
+      "path": "faker/1.2.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "faker.1.2.0.nupkg.sha512",
+        "faker.nuspec",
+        "lib/Faker.dll"
+      ]
+    }
+  },
   "projectFileDependencyGroups": {
-    "net8.0": []
+    "net8.0": [
+      "Faker >= 1.2.0"
+    ]
   },
   "packageFolders": {
     "C:\\Users\\user\\.nuget\\packages\\": {},
@@ -56,6 +81,12 @@
     "frameworks": {
       "net8.0": {
         "targetAlias": "net8.0",
+        "dependencies": {
+          "Faker": {
+            "target": "Package",
+            "version": "[1.2.0, )"
+          }
+        },
         "imports": [
           "net461",
           "net462",
@@ -75,5 +106,17 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1701",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Package 'Faker 1.2.0' was restored using '.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1' instead of the project target framework 'net8.0'. This package may not be fully compatible with your project.",
+      "libraryId": "Faker",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
 }

@@ -13,3 +13,6 @@ C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\refint\Rule
 C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.pdb
 C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.genruntimeconfig.cache
 C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\ref\Rules.dll
+C:\Users\user\Desktop\C++\System Proggramming\Rules\bin\Debug\net8.0\Faker.dll
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.csproj.AssemblyReference.cache
+C:\Users\user\Desktop\C++\System Proggramming\Rules\obj\Debug\net8.0\Rules.csproj.Up2Date

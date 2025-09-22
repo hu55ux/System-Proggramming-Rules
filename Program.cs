@@ -1051,6 +1051,8 @@ Continuations-ın 5 əsas növü var:
 
 
 //// TaskMethod: sadəcə simulyasiya üçün uzunmüddətli iş görür
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
 
@@ -1356,7 +1358,297 @@ async void DownloadAsync()
 /*
 
 
+                                                                    Parallel & PLINQ
 
+
+ 
+ 
+*/
+
+List<Student> students = new List<Student>();
+
+for (int i = 0; i < 10; i++)
+{
+    students.Add(new Student()
+    {
+        Id = i + 1,
+        FirstName = Faker.NameFaker.FirstName(),
+        LastName = Faker.NameFaker.LastName(),
+        Age = Faker.NumberFaker.Number(18, 75),
+        Mark = Faker.NumberFaker.Number(10, 120) / 10.0,
+        Email = Faker.InternetFaker.Email()
+
+    });
+}
+
+#region Task When Continue
+
+//var task1 = Task.Run(() =>
+//{
+//    for (int i = 0; i < students.Count / 2; i++)
+//    {
+//        students[i].Group = "FSDM_Oct_24_4_az";
+//        Thread.Sleep(10);
+//    }
+//});
+
+//var task2 = Task.Run(() =>
+//{
+//    for (int i = students.Count / 2; i < students.Count; i++)
+//    {
+//        students[i].Group = "FSDA_Oct_24_5_az";
+//        Thread.Sleep(10);
+//    }
+//});
+//
+//Task.WaitAll(task1, task2);
+//await Task.WhenAll(task1, task2, WriteDataLog(), SendEmailNotification(), SendSmsNotification()) // Bu hissədə də biz bu hissədə olan bütün işlər bitəndən sonra davam edəcək işi təyin edirik
+//    .ContinueWith(t =>
+//    {
+//        Console.WriteLine("Continue with Task");
+//    });
+//Console.WriteLine("End");
+
+//students.ForEach(Console.WriteLine);
+
+//// Formal xarakterli methodlardır ki bunlar bizim bəzi işlərimizin olmasını realizasiya edir.
+//Task WriteDataLog() => Task.Delay(500); 
+//Task SendEmailNotification() => Task.Delay(200);
+//Task SendSmsNotification() => Task.Delay(700);
+
+#endregion
+
+#region Parallel
+/*
+Əsas məqsədi adi for və foreach dövrələrini və ardıcıl metod çağırışlarını paralel (yəni eyni vaxtda bir neçə thread ilə) icra etməkdir.
+Amma diqqət yetirməli olunan hissə Critical Section problemidir ki bunun da qarşısını Concurrent Collections istifadə olunması və ya istifadəçinin lock istifadəsidir ki 
+Buradada məsuliyyət developer-ın üzərinə düşür. Çünki Parallel ThreadSafe deyil və bu da Critical Section probleminin əsas səbəbidir.
+Parallel classı daha çox böyük və çoxsaylı datalarda və methodlarda istifadə olunur ki buda bizə performans üstünlüyü təmin edir. Əgər biz kiçik və azsaylı data ilə
+işləyiriksə bu zamanda sadə for iləişləmək daha məqsədəuyğundur.
+*/
+
+
+//Parallel.For(0, students.Count, new ParallelOptions { MaxDegreeOfParallelism = 6 },
+//    i =>
+//    {
+//        students[i].Group = "FSDM_Oct_24_4_az";
+//        Console.WriteLine($"""
+//            ThreadId:               {Thread.CurrentThread.ManagedThreadId}
+//            IsBackground:           {Thread.CurrentThread.IsBackground}
+//            IsThreadPoolThread:     {Thread.CurrentThread.IsThreadPoolThread}
+
+//            """);
+//    });
+//0 → haradan başla
+//students.Count → hara qədər get
+//ParallelOptions → neçə thread işləsin, dayandırma imkanları və s.
+//1. MaxDegreeOfParallelism
+//Nə qədər thread eyni vaxtda işləyə biləcəyini müəyyən edir.
+//Default: -1(sistem CPU nüvələrinin sayına görə maksimumu seçir).
+//2. CancellationToken
+//Paralel əməliyyatı vaxtından əvvəl dayandırmaq üçün istifadə olunur.
+//Adətən CancellationTokenSource ilə birlikdə işlədilir.
+//3. TaskScheduler
+//İstifadə olunan Task scheduler-i dəyişməyə imkan verir.
+//Default olaraq TaskScheduler.Default istifadə olunur → bu da .NET-in daxili ThreadPool-udur.
+//Əgər sən xüsusi TaskScheduler yazmısansa, bunu burda verə bilərsən.
+//Çox nadir hallarda dəyişdirilir (məsələn, UI kontekstində xüsusi scheduler lazım olanda).
+
+//i => { ... } → hər tələbə üçün icra olunacaq iş
+
+//Stopwatch stopwatch = new();
+//stopwatch.Start();
+
+//for (int i = 0; i < students.Count; i++)
+//{
+//    students[i].Group = "FSDM_Oct_24_4_az";
+//    Thread.Sleep(1);
+//}
+//Console.WriteLine("Students group add for finished");
+//var syncFor = stopwatch.ElapsedTicks;
+//stopwatch.Restart();
+//stopwatch.Start();
+//Parallel.For(0, students.Count,
+//    i =>
+//    {
+//        students[i].Group = "FSDM_Oct_24_5_az";
+//        Thread.Sleep(1);
+//    });
+//Console.WriteLine("Students group add parallel for finished");
+//var parallelFor = stopwatch.ElapsedTicks;
+//stopwatch.Stop();
+
+//Console.WriteLine($"Synchrony for ->    {syncFor}"); // Standart For
+//Console.WriteLine($"Parallel  for ->    {parallelFor}"); // Parallel For
+//students.ForEach(Console.WriteLine);
+//Console.ReadLine();
+
+#endregion
+
+#region PLINQ
+/*
+Adi LINQ sorğularını paralel (çox thread ilə) icra etməyə imkan verir.
+Məqsəd → çoxnüvəli CPU-dan faydalanmaq və böyük verilənlər üzərində sorğuları sürətləndirmək.
+Paralleldən üstünlüyü də ordadır ki PLINQ bloklama işini özü daxilində həll edir yəni Critical Section problemi yaranmır.
+Amma burada da biz kiçik içləri standart for istifadə olunmalıdır amma digər böyük işlərdə PLINQ və ya məsuliyyət bizdə olma şərti ilə Parallel istifadə oluna bilər.
+İstifadəsi çox sadədir (sadəcə AsParallel() əlavə et).
+*/
+
+//Stopwatch stopwatch = new();
+//stopwatch.Start();
+
+//// Parallel.Foreach()
+//int parallelCount = 0;
+//object obj = new();
+//Parallel.ForEach(students,
+//    s =>
+//    {
+//        if (s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com"))
+//        {
+
+//        }
+//        //lock (obj)
+//        //{
+//        //    if (s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com"))
+//        //    {
+//        //        parallelCount++;
+//        //    }
+//        //}
+
+//    });
+//var parallelForEach = stopwatch.ElapsedTicks;
+
+//stopwatch.Restart();
+
+
+//// LINQ
+//int linqCount = students.Count(s => s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com"));
+
+//var linqTicks = stopwatch.ElapsedTicks;
+
+//stopwatch.Restart();
+
+
+//// PLINQ
+
+//var plinqCount = students.AsParallel().Count(s => s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com"));
+//var plinqTicks = stopwatch.ElapsedTicks;
+//stopwatch.Stop();
+
+
+//Console.WriteLine($"LINQ ->                 {linqTicks}         Count = {linqCount}");
+//Console.WriteLine($"Parallel  foreach ->    {parallelForEach}       Count = {parallelCount}");
+//Console.WriteLine($"PLINQ ->                {plinqTicks}        Count = {plinqCount}");
+////students.ForEach(Console.WriteLine);
+//Console.ReadLine();
+
+
+
+
+#endregion
+
+#region LINQ vs PLINQ vs Parallel
+/*
+Burada da gördüyümüz kimi burada Concurrent Collections istifadəsi daha düzgündür ki buda bizə ThreadSafe təmin edir və işimizin tam işləməsini və performans üstünlüyü verir. 
+ 
+*/
+
+
+
+Stopwatch stopwatch = new();
+stopwatch.Start();
+ConcurrentBag<string> namesParallel = [];
+object obj = new();
+Parallel.ForEach(students, s =>
+{
+    if (s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com"))
+    {
+        namesParallel.Add($"{s.FirstName} {s.LastName}");
+        Thread.Sleep(1);
+
+    }
+});
+
+var parallelTicks = stopwatch.ElapsedTicks;
+stopwatch.Restart();
+
+List<string> namesLinq = students
+    .Where(s =>
+    {
+        Thread.Sleep(1);
+        return s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com");
+    })
+    .Select(s => $"{s.FirstName} {s.LastName}")
+    .ToList();
+
+var linqTicks = stopwatch.ElapsedTicks;
+stopwatch.Restart();
+
+List<string> namesPLinq = students
+    .AsParallel()
+    .Where(s =>
+    {
+        Thread.Sleep(1);
+        return s.FirstName.Length + s.LastName.Length > 15 && s.Email.ToLower().EndsWith("@gmail.com");
+    })
+    .Select(s => $"{s.FirstName} {s.LastName}")
+    .ToList();
+
+var plinqTicks = stopwatch.ElapsedTicks;
+stopwatch.Restart();
+
+stopwatch.Stop();
+
+Console.WriteLine($"LINQ: {linqTicks}");
+Console.WriteLine($"Parallel: {parallelTicks}");
+Console.WriteLine($"PLINQ: {plinqTicks}");
+
+Console.WriteLine();
+
+Console.WriteLine($"LINQ count: {namesLinq.Count}");
+Console.WriteLine($"Parallel count: {namesParallel.Count}");
+Console.WriteLine($"PLINQ count: {namesPLinq.Count}");
+
+#endregion
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class Student
+{
+    public int Id { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public int Age { get; set; }
+    public string Email { get; set; }
+    public string Group { get; set; }
+    public double Mark { get; set; }
+    public override string ToString()
+    {
+        return $"""
+            Id:             {Id}
+            FirstName:      {FirstName}
+            LastName:       {LastName}
+            Age:            {Age}
+            Email:          {Email}
+            Group:          {Group}
+            Mark:           {Mark}
+
+            """;
+    }
+}
+/*
 
 
 
